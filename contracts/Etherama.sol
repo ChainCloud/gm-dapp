@@ -1,5 +1,8 @@
+
+// [review, recomendation] Update solc version
 pragma solidity ^0.4.18;
 
+// [review, recomendation] Use OpenZeppelin's ERC20 contract
 contract IStdToken {
     function balanceOf(address _owner) public constant returns (uint256);
     function transfer(address _to, uint256 _value) public returns (bool);
@@ -8,6 +11,7 @@ contract IStdToken {
 
 contract EtheramaCommon {
     
+    // [review, recomendation] use address instead of bytes32 (hash)
     mapping(bytes32 => bool) private _administrators;
 
     mapping(bytes32 => bool) private _managers;
@@ -48,8 +52,11 @@ contract EtheramaCommon {
 
 contract EtheramaGasPriceLimit is EtheramaCommon {
     
+    // [review, recomendation] Use stdandard naming convention. This is not a constant!
+    // [review, recomendation] Should be: maxGasPrice
     uint256 public MAX_GAS_PRICE = 0 wei;
     
+    // [review, recomendation] Use standard naming convention. OnSetMaxGasPrice
     event onSetMaxGasPrice(uint256 val);    
     
     modifier validGasPrice(uint256 val) {
@@ -57,6 +64,7 @@ contract EtheramaGasPriceLimit is EtheramaCommon {
         _;
     }
     
+    // [review, recomendation] Use standard naming convention like _maxGasPrice
     function EtheramaGasPriceLimit(uint256 maxGasPrice) public validGasPrice(maxGasPrice) {
         setMaxGasPrice(maxGasPrice);
     } 
@@ -112,6 +120,7 @@ contract EtheramaCore is EtheramaGasPriceLimit {
          _initBlockNum = block.number;
     }
     
+    // [review, recomendation] Convert _initBlockNum from private to public
     function getInitBlockNum() public view returns (uint256) {
         return _initBlockNum;
     }
@@ -195,11 +204,13 @@ contract EtheramaCore is EtheramaGasPriceLimit {
     }
     
     function transferQuickBonus(address userAddress) onlyControllerContract public {
+        
         Etherama(msg.sender).acceptQuickPromoBonusTransfer.value(getCurrentQuickPromoBonus())(userAddress);
         _currentQuickPromoBonus = 0;
     }
     
     function transferBigBonus(address userAddress) onlyControllerContract public {
+        // [review] OK here because Etherama code is controlled by us (no reetrancy attack!)
         Etherama(msg.sender).acceptBigPromoBonusTransfer.value(getCurrentBigPromoBonus())(userAddress);
         _currentBigPromoBonus = 0;
     }
@@ -212,7 +223,9 @@ contract EtheramaCore is EtheramaGasPriceLimit {
         _currentDevReward = SafeMath.add(_currentDevReward, msg.value);
     }    
     
+    // [review, recomendation] No withdraw methods for bonuses?
     function withdrawDevReward() onlyAdministrator public {
+        // [review] OK!
         msg.sender.transfer(_currentDevReward);
 
         _currentDevReward = 0;
@@ -222,6 +235,7 @@ contract EtheramaCore is EtheramaGasPriceLimit {
 
 contract EtheramaData {
 
+    // [review] Not used. Please remove 
     address private _tokenContractAddress;
     
     uint256 constant private TOKEN_PRICE_INITIAL = 0.001 ether;
@@ -437,6 +451,7 @@ contract EtheramaData {
     }    
     
 
+    // [review] Unused method
     function setUserRewardPayouts(address addr, uint256 val) onlyController public {
         _rewardPayouts[addr] = val;
     }
@@ -691,6 +706,8 @@ contract Etherama {
         require(uint64(now) >= _data.getExpirationTime());
         
         _token.transfer(msg.sender, getRemainingTokenAmount());   
+
+        // [review] OK!
         msg.sender.transfer(getTotalEthBalance());
         
         isActive = false;
@@ -711,6 +728,7 @@ contract Etherama {
 
         subUserTokens(msg.sender, tokenAmount);
 
+        // [review] OK!
         msg.sender.transfer(ethAmount);
 
         updateTokenPrice(-convert256ToReal(tokenAmount));
@@ -743,6 +761,7 @@ contract Etherama {
     function withdraw() onlyActive onlyRewardOwners public {
         uint256 reward = getRewardAndPrepareWithdraw();
         
+        // [review] OK!
         msg.sender.transfer(reward);
         
         onWithdraw(msg.sender, reward);
@@ -755,6 +774,7 @@ contract Etherama {
         
         _data.resetTokenOwnerReward();
 
+        // [review] OK!
         msg.sender.transfer(reward);
 
         onWithdrawTokenOwnerReward(msg.sender, reward);

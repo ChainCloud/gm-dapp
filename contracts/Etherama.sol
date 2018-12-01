@@ -801,6 +801,8 @@ contract Etherama {
         isMigrationToNewControllerInProgress = val;
     }
 
+    // [review] What it does? Only gets money. In this case this should be renamed
+    // [review] because semantics is weird
     function activateNewController() payable public {
         require(isMigrationToNewControllerInProgress);
     }

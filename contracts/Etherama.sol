@@ -64,7 +64,6 @@ contract EtheramaGasPriceLimit is EtheramaCommon {
         _;
     }
     
-    // [review, recomendation] Use standard naming convention like _maxGasPrice
     function EtheramaGasPriceLimit(uint256 maxGasPrice) public validGasPrice(maxGasPrice) {
         setMaxGasPrice(maxGasPrice);
     } 
@@ -120,7 +119,8 @@ contract EtheramaCore is EtheramaGasPriceLimit {
          _initBlockNum = block.number;
     }
     
-    // [review, recomendation] Convert _initBlockNum from private to public
+    // [review, recomendation] Convert _initBlockNum from private to public and remove this method
+    // [review, recomendation] (and all other getters)
     function getInitBlockNum() public view returns (uint256) {
         return _initBlockNum;
     }

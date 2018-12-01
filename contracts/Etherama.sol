@@ -37,6 +37,7 @@ contract EtheramaCommon {
     }
 
     function removeAdministator(address addr) onlyAdministrator public {
+        // [review] Check here that _administrators[keccak256(addr)] is true
         _administrators[keccak256(addr)] = false;
     }
 
@@ -45,6 +46,7 @@ contract EtheramaCommon {
     }
 
     function removeManager(address addr) onlyAdministrator public {
+        // [review] Check here that _managers[keccak256(addr)] is true
         _managers[keccak256(addr)] = false;
     }
 }
@@ -130,6 +132,7 @@ contract EtheramaCore is EtheramaGasPriceLimit {
     }
 
     function removeControllerContract(address addr) onlyAdministrator public {
+        // [review] Check here that _controllerContracts[keccak256(addr)] is true
         _controllerContracts[addr] = false;
     }
     
@@ -204,7 +207,7 @@ contract EtheramaCore is EtheramaGasPriceLimit {
     }
     
     function transferQuickBonus(address userAddress) onlyControllerContract public {
-        
+        // [review] OK
         Etherama(msg.sender).acceptQuickPromoBonusTransfer.value(getCurrentQuickPromoBonus())(userAddress);
         _currentQuickPromoBonus = 0;
     }
@@ -316,6 +319,7 @@ contract EtheramaData {
         return _core;
     }
     
+    // [review, recommendation] getCore() can be used instead (same result)
     function getCoreAddress()  public view returns(address) {
         return address(_core);
     }
@@ -404,6 +408,7 @@ contract EtheramaData {
     }
 
     function removeAdministator(address addr) onlyController public {
+        // [review] Check here that _administrators[keccak256(addr)] is true
         _administrators[keccak256(addr)] = false;
         _administratorCount = SafeMath.sub(_administratorCount, 1);
     }
@@ -677,6 +682,9 @@ contract Etherama {
         if (dataContractAddress == 0x0) {
             _data.init(tokenContractAddress, expirationInDays, convert256ToReal(_data.getTokenInitialPrice()), priceSpeedPercent, priceSpeedBlocks);
             _data.addAdministator(msg.sender);
+
+            // [review] This will be set only in case (dataContractAddress==0x0). Is it correct? 
+            // [reivew] otherwise -> will be 0x0
             _creator = msg.sender;
         }
         
@@ -693,6 +701,8 @@ contract Etherama {
     }
 
     function transferOwnership(address addr) onlyAdministrator public {
+        // [review] Semantics of transferOwnership means that current ownership is lost! 
+        // [review] But it is not! Probably, you need to add removeAdministator()
         addAdministator(addr);
     }
 
@@ -1353,6 +1363,15 @@ contract Etherama {
     }        
     
     function calcPercent(uint256 amount, uint256 percent) public pure returns(uint256) {
+        // [review, critical] Can loose precision: 
+        // 
+        // Example:
+        // amount = 123
+        // percent = 1 eth = 1e18
+        // div(mul(div(amount, 100), percent), 1 ether)=
+        // div(mul(div(123, 100), 1e18), 1e18)=
+        // div(mul(1,1e18),1e18) = 1
+
         return SafeMath.div(SafeMath.mul(SafeMath.div(amount, 100), percent), 1 ether);
     }
 
@@ -1364,6 +1383,8 @@ contract Etherama {
     }
 
     //Converts uint256 to real num.
+    // [review, critical] This method will loose the precision! 
+    // [review, critical] uint256 -> int64 -> int128 
     function convert256ToReal(uint256 val) internal pure returns(int128) {
         return RealMath.fraction(int64(SafeMath.div(val, 1e6)), 1e12);
     }

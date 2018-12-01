@@ -11,13 +11,14 @@ contract IStdToken {
 
 contract EtheramaCommon {
     
-    // [review, recomendation] use address instead of bytes32 (hash)
+    // [review, recomendation] use address instead of bytes32 (hash). why need hash?
     mapping(bytes32 => bool) private _administrators;
 
     mapping(bytes32 => bool) private _managers;
 
     
     modifier onlyAdministrator() {
+        // [review, recomendation] use address instead of bytes32 (hash). why need hash?
         require(_administrators[keccak256(msg.sender)]);
         _;
     }
@@ -728,6 +729,7 @@ contract Etherama {
         isMigrationToNewControllerInProgress = false;
     }
     
+    // [review, recommendation] Maybe rename it to 'deactivate'?
     function finish() onlyAdministrator public {
         require(uint64(now) >= _data.getExpirationTime());
         
@@ -771,6 +773,7 @@ contract Etherama {
 
     //Fallback function to handle ethereum that was send straight to the contract
     function() onlyActive validGasPrice payable public {
+        // [review, recommendation] Can call 'buy()' here instead of 'purchaseTokens
         purchaseTokens(msg.value, 0x0, 1);
     }
 
@@ -800,7 +803,8 @@ contract Etherama {
         
         _data.resetTokenOwnerReward();
 
-        // [review] OK!
+        // [review] here current balance could be LESS than reward (or ZERO)
+        // [review] for example if we have called finish(). Should onlyActive() modifier be addded?
         msg.sender.transfer(reward);
 
         onWithdrawTokenOwnerReward(msg.sender, reward);
@@ -811,7 +815,7 @@ contract Etherama {
         isMigrationToNewControllerInProgress = val;
     }
 
-    // [review] What it does? Only gets money. In this case this should be renamed
+    // [review] What it does? Only gets money? In this case this should be renamed
     // [review] because semantics is weird
     function activateNewController() payable public {
         require(isMigrationToNewControllerInProgress);
@@ -850,6 +854,8 @@ contract Etherama {
 
     
     //set new controller address in case of some mistake in the contract and transfer there all the tokens and eth.
+    // [review] Didn't get why finish() is needed if we have 'setNewControllerContractAddress'
+    // [review] Also, this can be called after finish() is called!
     function setNewControllerContractAddress(address newControllerAddr) onlyAdministrator public {
         require(newControllerAddr != 0x0);
 
@@ -857,6 +863,9 @@ contract Etherama {
 
         Etherama newController = Etherama(newControllerAddr);
         _data.setNewControllerAddress(newControllerAddr);
+
+        // [review] Should _core.removeControllerContract() and _core.addControllerContract() 
+        // be called here too?
 
         uint256 remainingTokenAmount = getRemainingTokenAmount();
         uint256 ethBalance = getTotalEthBalance();
@@ -1022,11 +1031,14 @@ contract Etherama {
         uint256 minTokenVal; uint256 maxTokenVal;
         (minTokenVal, maxTokenVal) = getTokenDealRange();
         
+        // [review, recommendation] Rewrite/refactor this line (convert to if)
         return ( SafeMath.max(_core.MIN_ETH_DEAL_VAL(), tokensToEth(minTokenVal, true)), SafeMath.min(_core.MAX_ETH_DEAL_VAL(), tokensToEth(maxTokenVal, true)) );
     }
 
     function getUserReward(address userAddress, bool incRefBonus, bool incPromoBonus) public view returns(uint256) {
         uint256 reward = _data.getBonusPerShare() * getActualUserTokenBalance(userAddress);
+
+        // [review, recommendation] Rewrite/refactor this line (convert to if)
         reward = ((reward < _data.getUserRewardPayouts(userAddress)) ? 0 : SafeMath.sub(reward, _data.getUserRewardPayouts(userAddress))) / _core.MAGNITUDE();
         
         if (incRefBonus) reward = SafeMath.add(reward, _data.getUserRefBalance(userAddress));
@@ -1054,6 +1066,7 @@ contract Etherama {
     }
 
     function calcReward(uint256 tokenAmount) public view returns(uint256) {
+        // [review] Why converted to int256? the getBonusPerShare() returns uint256
         return (uint256) ((int256)(_data.getBonusPerShare() * tokenAmount)) / _core.MAGNITUDE();
     }  
 
@@ -1146,6 +1159,7 @@ contract Etherama {
     
     // INTERNAL FUNCTIONS
     
+    // [review, recommendation] Maybe rename purchaseTokens -> issueTokens (or mintTokens)
     function purchaseTokens(uint256 ethAmount, address refAddress, uint256 minReturn) internal returns(uint256) {
         uint256 tokenAmount = 0; uint256 totalFeeEth = 0; uint256 tokenPrice = 0;
         (tokenAmount, totalFeeEth, tokenPrice) = estimateBuyOrder(ethAmount, true);

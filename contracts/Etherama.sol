@@ -78,6 +78,7 @@ contract EtheramaGasPriceLimit is EtheramaCommon {
     function setMaxGasPrice(uint256 val) public validGasPrice(val) onlyAdministratorOrManager {
         MAX_GAS_PRICE = val;
         
+        // [review, recommendation] Use 'emit' in all events
         onSetMaxGasPrice(val);
     }
 }
@@ -252,7 +253,13 @@ contract EtheramaData {
     uint64 private _priceSpeedBlocks = 10000;
 
     
+    // [review] Why is that needed? We have balanceOf() function for the current user 
+    // [review] Didn't get the idea of addUserTokenBalance/subUserTokenBalance. 
+    // 
+    // [review, critical] If user will call token.transfer() -> his balanceOf() 
+    // [review, critical] will be changed, but _userTokenBalances will be the same!
     mapping(address => uint256) private _userTokenBalances;
+
     mapping(address => uint256) private _refBalances;
     mapping(address => uint256) private _rewardPayouts;
     mapping(address => uint256) private _promoQuickBonuses;
@@ -748,6 +755,10 @@ contract Etherama {
 
     //sell tokens for eth
     function sell(uint256 tokenAmount, uint256 minReturn) onlyActive onlyContractUsers validGasPrice public returns(uint256) {
+        // [review, recommendation] Add ().
+        // i.e.:
+        // if ((tokenAmount > getCurrentUserLocalTokenBalance()) || (tokenAmount == 0)) { return; }
+        //
         if (tokenAmount > getCurrentUserLocalTokenBalance() || tokenAmount == 0) return;
 
         uint256 ethAmount = 0; uint256 totalFeeEth = 0; uint256 tokenPrice = 0;
@@ -1170,6 +1181,7 @@ contract Etherama {
             require(getCurrentUserMaxPurchase() >= tokenAmount);
         }
 
+        // [review, recommendation] Split into 2 require statements
         require(tokenAmount > 0 && (SafeMath.add(tokenAmount, getTotalTokenSold()) > getTotalTokenSold()));
 
         if (refAddress == msg.sender || !isRefAvailable(refAddress)) refAddress = 0x0;
@@ -1220,6 +1232,9 @@ contract Etherama {
     function checkAndSendPromoBonus(uint256 purchaseAmountEth) internal {
         if (purchaseAmountEth < _data.getPromoMinPurchaseEth()) return;
 
+        // [review, recommendation] This is 2 txs, better to combine quick+big promos and then send in ONE tx
+        // i.e: 
+        // acceptQuickPromoBonusTransfer + acceptBigPromoBonusTransfer = acceptBonusTransfer(quick, big);
         if (getQuickPromoRemainingBlocks() == 0) sendQuickPromoBonus();
         if (getBigPromoRemainingBlocks() == 0) sendBigPromoBonus();
     }
@@ -1280,11 +1295,13 @@ contract Etherama {
 
 
     function addUserTokens(address user, uint256 tokenAmount) internal {
+        // [review] Why is that needed? We have balanceOf() function for the current user 
         _data.addUserTokenBalance(user, tokenAmount);
         _token.transfer(msg.sender, tokenAmount);   
     }
 
     function subUserTokens(address user, uint256 tokenAmount) internal {
+        // [review] Why is that needed? We have balanceOf() function for the current user 
         _data.subUserTokenBalance(user, tokenAmount);
         _token.transferFrom(user, address(this), tokenAmount);    
     }
@@ -1293,6 +1310,8 @@ contract Etherama {
         _data.setRealTokenPrice(calc1RealTokenRateFromRealTokens(realTokenAmount));
     }
 
+    // [review] Not sure if this works good... 
+    // [reivew] code is too complicated. Please add comments 
     function ethToTokens(uint256 ethAmount, bool isBuy) internal view returns(uint256) {
         int128 realEthAmount = convert256ToReal(ethAmount);
         int128 t0 = RealMath.div(realEthAmount, _data.getRealTokenPrice());

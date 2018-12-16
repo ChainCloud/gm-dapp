@@ -61,10 +61,6 @@ contract EtheramaGasPriceLimit is EtheramaCommon {
         setMaxGasPrice(maxGasPrice);
     } 
     
-    function getMaxGasPrice() public view returns(uint256) {
-        return MAX_GAS_PRICE;
-    }
-    
     function setMaxGasPrice(uint256 val) public validGasPrice(val) onlyAdministratorOrManager {
         MAX_GAS_PRICE = val;
         
@@ -82,26 +78,24 @@ contract EtheramaCore is EtheramaGasPriceLimit {
     uint256 constant public MIN_ETH_DEAL_VAL = 0.001 ether;
     uint256 constant public MAX_ETH_DEAL_VAL = 200000 ether;
     
-    uint256 private _bigPromoPercent = 5 ether;
-    uint256 private _quickPromoPercent = 5 ether;
-    uint256 private _devRewardPercent = 15 ether;
+    uint256 public _bigPromoPercent = 5 ether;
+    uint256 public _quickPromoPercent = 5 ether;
+    uint256 public _devRewardPercent = 15 ether;
+
+    uint128 public _bigPromoBlockInterval = 9999;
+    uint128 public _quickPromoBlockInterval = 100;
+
+    uint256 public _currentBigPromoBonus;
+    uint256 public _currentQuickPromoBonus;
+    uint256 public _totalCollectedPromoBonus;
     
+    uint256 public _currentDevReward;
 
-    uint128 private _bigPromoBlockInterval = 9999;
-    uint128 private _quickPromoBlockInterval = 100;
-
-    uint256 private _currentBigPromoBonus;
-    uint256 private _currentQuickPromoBonus;
-    uint256 private _totalCollectedPromoBonus;
-    
-    uint256 private _currentDevReward;
-
-    uint256 private _promoMinPurchaseEth = 1 ether;
+    uint256 public _promoMinPurchaseEth = 1 ether;
     
     mapping(address => bool) private _controllerContracts;
     
-    uint256 private _initBlockNum;
-
+    uint256 public _initBlockNum;
     
     modifier onlyControllerContract() {
         require(_controllerContracts[msg.sender]);
@@ -110,10 +104,6 @@ contract EtheramaCore is EtheramaGasPriceLimit {
     
     function EtheramaCore(uint256 maxGasPrice) EtheramaGasPriceLimit(maxGasPrice) public { 
          _initBlockNum = block.number;
-    }
-    
-    function getInitBlockNum() public view returns (uint256) {
-        return _initBlockNum;
     }
     
     function addControllerContract(address addr) onlyAdministrator public {
@@ -129,16 +119,8 @@ contract EtheramaCore is EtheramaGasPriceLimit {
         _bigPromoBlockInterval = val;
     }
     
-    function getBigPromoInterval() public view returns(uint256) {
-        return _bigPromoBlockInterval;
-    }
-
     function setQuickPromoInterval(uint128 val) onlyAdministrator public {
         _quickPromoBlockInterval = val;
-    }
-    
-    function getQuickPromoInterval() public view returns(uint256) {
-        return _quickPromoBlockInterval;
     }
     
     function addBigPromoBonus() onlyControllerContract payable public {
@@ -146,66 +128,32 @@ contract EtheramaCore is EtheramaGasPriceLimit {
         addTotalCollectedPromoBonus(msg.value);
     }
     
-    function getCurrentBigPromoBonus() public view returns (uint256) {
-        return _currentBigPromoBonus;
-    } 
-    
     function addQuickPromoBonus() onlyControllerContract payable public {
         _currentQuickPromoBonus = SafeMath.add(_currentQuickPromoBonus, msg.value);
         addTotalCollectedPromoBonus(msg.value);
     }
     
-    function getCurrentQuickPromoBonus() public view returns (uint256) {
-        return _currentQuickPromoBonus;
-    } 
-    
-    
     function addTotalCollectedPromoBonus(uint256 val) internal {
         _totalCollectedPromoBonus = SafeMath.add(_totalCollectedPromoBonus, val);
     }
     
-    function getTotalCollectedPromoBonus() public view returns (uint256) {
-        return _totalCollectedPromoBonus;
-    }    
-
-
-    function getBigPromoPercent() public view returns(uint256) {
-        return _bigPromoPercent;
-    }
-    
-    function getQuickPromoPercent() public view returns(uint256) {
-        return _quickPromoPercent;
-    }
-    
-    function getDevRewardPercent() public view returns(uint256) {
-        return _devRewardPercent;
-    }    
-
     function setPromoMinPurchaseEth(uint256 val) onlyAdministrator public {
         _promoMinPurchaseEth = val;
     }
     
-    function getPromoMinPurchaseEth() public view returns(uint256) {
-        return _promoMinPurchaseEth;
-    } 
-
     function setRewardPercentages(uint256 bigPromoPercent, uint256 quickPromoPercent) onlyAdministrator public {
         _bigPromoPercent = bigPromoPercent;
         _quickPromoPercent = quickPromoPercent;
     }
     
     function transferQuickBonus(address userAddress) onlyControllerContract public {
-        Etherama(msg.sender).acceptQuickPromoBonusTransfer.value(getCurrentQuickPromoBonus())(userAddress);
+        Etherama(msg.sender).acceptQuickPromoBonusTransfer.value(_currentQuickPromoBonus)(userAddress);
         _currentQuickPromoBonus = 0;
     }
     
     function transferBigBonus(address userAddress) onlyControllerContract public {
-        Etherama(msg.sender).acceptBigPromoBonusTransfer.value(getCurrentBigPromoBonus())(userAddress);
+        Etherama(msg.sender).acceptBigPromoBonusTransfer.value(_currentBigPromoBonus)(userAddress);
         _currentBigPromoBonus = 0;
-    }
-
-    function getDevReward() public view returns(uint256) {
-        return _currentDevReward;
     }
 
     function addDevReward() onlyControllerContract payable public {
@@ -217,7 +165,6 @@ contract EtheramaCore is EtheramaGasPriceLimit {
 
         _currentDevReward = 0;
     }
-    
 }
 
 contract EtheramaData {
@@ -311,7 +258,7 @@ contract EtheramaData {
     }
     
     function getMaxGasPrice() public view returns(uint256) {
-        return _core.getMaxGasPrice();
+        return _core.MAX_GAS_PRICE();
     }
 
 
@@ -352,27 +299,27 @@ contract EtheramaData {
     }
     
     function getDevRewardPercent() public view returns(uint256) {
-        return _core.getDevRewardPercent();
+        return _core._currentDevReward();
     }
     
     function getBigPromoPercent() public view returns(uint256) {
-        return _core.getBigPromoPercent();
+        return _core._bigPromoPercent();
     }
     
     function getQuickPromoPercent() public view returns(uint256) {
-        return _core.getQuickPromoPercent();
+        return _core._quickPromoPercent();
     }
     
     function getBigPromoInterval() public view returns(uint256) {
-        return _core.getBigPromoInterval();
+        return _core._bigPromoBlockInterval();
     }
     
     function getQuickPromoInterval() public view returns(uint256) {
-        return _core.getQuickPromoInterval();
+        return _core._quickPromoBlockInterval();
     }
     
     function getPromoMinPurchaseEth() public view returns(uint256) {
-        return _core.getPromoMinPurchaseEth();
+        return _core._promoMinPurchaseEth();
     }
 
     function getPriceSpeedPercent() public view returns(uint64) {
@@ -493,7 +440,7 @@ contract EtheramaData {
 
     
     function getCommonInitBlockNum() public view returns (uint256) {
-        return _core.getInitBlockNum();
+        return _core._initBlockNum();
     }
     
     function addBonusPerShare(uint256 val) onlyController public {
@@ -517,17 +464,16 @@ contract EtheramaData {
     }
     
     function getCurrentBigPromoBonus() public view returns (uint256) {
-        return _core.getCurrentBigPromoBonus();
+        return _core._currentBigPromoBonus();
     }        
     
 
     function getCurrentQuickPromoBonus() public view returns (uint256) {
-        return _core.getCurrentQuickPromoBonus();
+        return _core._currentQuickPromoBonus();
     }    
-
     
     function getTotalCollectedPromoBonus() public view returns (uint256) {
-        return _core.getTotalCollectedPromoBonus();
+        return _core._totalCollectedPromoBonus();
     }    
 
     function setTotalSupply(uint256 val) onlyController public {
